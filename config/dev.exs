@@ -2,9 +2,14 @@ import Config
 
 # NOTE: this file contains some security keys/certs that are *not* secrets, and are only used for local development purposes.
 
-host = "hubs.local"
+host = "hubs.lookfoto.cc"
+db_name = "ret_dev"
+storage_outside_github_workflow = "/home/admin/app/reticulum/storage"
+
 cors_proxy_host = "hubs-proxy.local"
-assets_host = "hubs-assets.local"
+assets_host = "https://localhost:4000 https://localhost:8080 " <>
+"https://#{host} https://#{host}:4000 https://#{host}:8080 https://#{host}:3000 https://#{host}:8989 https://#{host}:9090 https://#{cors_proxy_host}:4000 " <>
+"https://assets-prod.reticulum.io https://asset-bundles-dev.reticulum.io https://asset-bundles-prod.reticulum.io"
 link_host = "hubs-link.local"
 
 # To run reticulum across a LAN for local testing, uncomment and change the line below to the LAN IP
@@ -17,21 +22,24 @@ link_host = "hubs-link.local"
 # watchers to your application. For example, we use it
 # with brunch.io to recompile .js and .css sources.
 config :ret, RetWeb.Endpoint,
-  url: [scheme: "https", host: host, port: 4000],
-  static_url: [scheme: "https", host: host, port: 4000],
+  url: [scheme: "https", host: host, port: 443],
+  static_url: [scheme: "https", host: host, port: 443],
   https: [
     port: 4000,
     otp_app: :ret,
     cipher_suite: :strong,
-    keyfile: "#{File.cwd!()}/priv/dev-ssl.key",
-    certfile: "#{File.cwd!()}/priv/dev-ssl.cert"
+    # keyfile: "#{File.cwd!()}/priv/dev-ssl.key",
+    # certfile: "#{File.cwd!()}/priv/dev-ssl.cert"
+    keyfile: "/etc/letsencrypt/live/#{host}/privkey.pem",
+    certfile: "/etc/letsencrypt/live/#{host}/cert.pem"
   ],
-  cors_proxy_url: [scheme: "https", host: cors_proxy_host, port: 4000],
-  assets_url: [scheme: "https", host: assets_host, port: 4000],
-  link_url: [scheme: "https", host: link_host, port: 4000],
+  cors_proxy_url: [scheme: "https", host: cors_proxy_host, port: 443],
+  assets_url: [scheme: "https", host: assets_host, port: 443],
+  link_url: [scheme: "https", host: link_host, port: 443],
   imgproxy_url: [scheme: "http", host: host, port: 5000],
   debug_errors: true,
-  code_reloader: true,
+  # origin is true
+  code_reloader: false,
   check_origin: false,
   # This config value is for local development only.
   secret_key_base: "txlMOtlaY5x3crvOCko4uV5PM29ul3zGo1oBGNO3cDXx+7GHLKqt0gR9qzgThxb5",
@@ -76,15 +84,17 @@ config :phoenix, :stacktrace_depth, 20
 # Configure your database
 config :ret, Ret.Repo,
   username: "postgres",
-  password: "postgres",
-  database: "ret_dev",
+  password: "Pp232400!!",
+  database: db_name,
+  hostname: "localhost",
   template: "template0",
   pool_size: 10
 
 config :ret, Ret.SessionLockRepo,
   username: "postgres",
-  password: "postgres",
-  database: "ret_dev",
+  password: "Pp232400!!",
+  database: db_name,
+  hostname: "localhost",
   template: "template0",
   pool_size: 10
 
@@ -136,20 +146,21 @@ config :ret, Ret.MediaResolver,
 config :ret, Ret.Speelycaptor,
   speelycaptor_endpoint: "https://1dhaogh2hd.execute-api.us-west-1.amazonaws.com/public"
 
+# Place the storage outside github workflow
 config :ret, Ret.Storage,
   host: "https://#{host}:4000",
-  storage_path: "storage/dev",
+  storage_path: storage_outside_github_workflow,
   ttl: 60 * 60 * 24
 
 asset_hosts =
   "https://localhost:4000 https://localhost:8080 " <>
-    "https://#{host}:4000 https://#{host}:8080 https://#{host}:3000 https://#{host}:8989 https://#{host}:9090 https://#{cors_proxy_host}:4000 " <>
+    "https://#{host} https://#{host}:4000 https://#{host}:8080 https://#{host}:3000 https://#{host}:8989 https://#{host}:9090 https://#{cors_proxy_host}:4000 " <>
     "https://assets-prod.reticulum.io https://asset-bundles-dev.reticulum.io https://asset-bundles-prod.reticulum.io"
 
 websocket_hosts =
   "https://localhost:4000 https://localhost:8080 wss://localhost:4000 " <>
     "https://#{host}:4000 https://#{host}:8080 wss://#{host}:4000 wss://#{host}:8080 wss://#{host}:8989 wss://#{host}:9090 " <>
-    "wss://#{host}:4000 wss://#{host}:8080 https://#{host}:8080 https://hubs.local:8080 wss://hubs.local:8080"
+    "wss://#{host}:4000 wss://#{host}:8080 https://#{host}:8080 https://localhost:8080 wss://localhost:8080"
 
 config :ret, RetWeb.Plugs.AddCSP,
   script_src: asset_hosts,
@@ -161,11 +172,25 @@ config :ret, RetWeb.Plugs.AddCSP,
   media_src: asset_hosts,
   manifest_src: asset_hosts
 
-config :ret, Ret.Mailer, adapter: Bamboo.LocalAdapter
+config :ret, Ret.Mailer,
+  adapter: Bamboo.SMTPAdapter,
+  server: "smtpdm.aliyun.com",
+  port: 25,
+  username: "lookfoto@lookfoto.cc",
+  password: "ABcd123456",
+  tls: :if_available,
+  ssl: true,
+  retries: 1,
+  debug_mode: true
 
-config :ret, RetWeb.Email, from: "info@hubs-mail.com"
+config :ret, RetWeb.Email, from: "lookfoto@lookfoto.cc"
+
+config :ret, Ret.PermsToken,
+  perms_key:
+    "-----BEGIN RSA PRIVATE KEY-----\nMIICXAIBAAKBgQCt+VJDI3yfGUChntSDVBSeK8lFoWVtzBIQykfsx5zl/yVK8LkL\nftmUEq2436XHMoUXLfycZkGZnIlr9WdFDvfowOTCSu1KrfHkgdHQuHoo/nt13FfL\ngb5VJmNxX85v5Hl+Nc/g55To1HKPkwVnDdqZ3dOWI7w5UiAkLUrfFAuu/QIDAQAB\nAoGAL2nknoGcZCvYrnOADW6r09OxHfX3k63rOoI2ifR48UHRIxRqChT/LVjN2bWy\nE5DULtYMo39G35uG5FJUW8DRlTv8czubdMWpVmXeb9QwRQEzePZOdDcl+9Pr3xKd\n0tNLtusQ3NkXpWfi/Bn1r7+P3KcQG0/iRteguSaWdrUuS6ECQQD3/yzGXUfCFs+V\nlx9G3yVf8CBsjb8VAMoNgN3yz1I5De+pPWMNqEuMWfRobwcnxpOuO5L5a8Gd1D3U\nMf6oI9RpAkEAs5abSwyPFMKkrch+Lir0690LFKtEr+bLNat689eM/ddHpbrIWrZx\ndVM+ANa0cepl+Uo1Pp2YzOI2To2+L29jdQJAKf7iPC0rq6hlOrW+rCe5kod9ViSi\nyRG7JZI/A5EsIVFE1mn4ziVDtd69zrmOgqPT+ltIRkiDHxED710P/LUkkQJANNzB\nK28v8sF0rf7VPYvBemgfad8cIdcCu/KVB4/MXa/v1BXOAf2wGgP9vUt15A5GJAI2\n+A51uuFfcPICKH5WPQJBAJ1ZuK956dIpCb3SMTNYfLX600FWtsxaseu/Q6cxt+UN\nvpNwhHVPR06zaZHErq4FiWk2QlwnAc03yccRYSjT0E4=\n-----END RSA PRIVATE KEY-----"
 
 config :ret, Ret.OAuthToken, oauth_token_key: ""
+config :ret, Ret.JanusLoadStatus, default_janus_host: host, janus_port: 4443
 
 config :ret, Ret.Guardian,
   issuer: "ret",
@@ -181,9 +206,9 @@ config :web_push_encryption, :vapid_details,
   private_key: "w76tXh1d3RBdVQ5eINevXRwW6Ow6uRcBa8tBDOXfmxM"
 
 config :sentry,
-  environment_name: :dev,
+  environment_name: :prod,
   json_library: Poison,
-  included_environments: [],
+  included_environments: [:pord],
   tags: %{
     env: "dev"
   }
@@ -197,11 +222,51 @@ config :ret, RetWeb.PageController,
   assets_path: "storage/assets",
   docs_path: "storage/docs"
 
+config :ret, Ret.PageOriginWarmer,
+  hubs_page_origin: "https://#{host}:8080",
+  admin_page_origin: "https://#{host}:8989",
+  spoke_page_origin: "https://#{host}:9090",
+  insecure_ssl: true
+
+# config :ret, Ret.HttpUtils, insecure_ssl: true
+
+config :ret, Ret.Scheduler,
+  jobs: [
+    # Send stats to StatsD every 5 seconds
+    {{:extended, "*/5 * * * *"}, {Ret.StatsJob, :send_statsd_gauges, []}},
+
+    # Flush stats to db every 5 minutes
+    {{:cron, "*/5 * * * *"}, {Ret.StatsJob, :save_node_stats, []}},
+
+    # Keep database warm when connected users
+    {{:cron, "*/3 * * * *"}, {Ret.DbWarmerJob, :warm_db_if_has_ccu, []}},
+
+    # Rotate TURN secrets if enabled
+    {{:cron, "*/5 * * * *"}, {Ret.Coturn, :rotate_secrets, []}},
+
+    # Various maintenence routines
+    {{:cron, "0 10 * * *"}, {Ret.Storage, :vacuum, []}},
+    {{:cron, "3 10 * * *"}, {Ret.Storage, :demote_inactive_owned_files, []}},
+    {{:cron, "4 10 * * *"}, {Ret.LoginToken, :expire_stale, []}},
+    {{:cron, "5 10 * * *"}, {Ret.Hub, :vacuum_entry_codes, []}},
+    {{:cron, "6 10 * * *"}, {Ret.Hub, :vacuum_hosts, []}},
+    {{:cron, "7 10 * * *"}, {Ret.CachedFile, :vacuum, []}}
+  ]
+
 config :ret, Ret.HttpUtils, insecure_ssl: true
 
 config :ret, Ret.Meta, phx_host: host
-
-config :ret, Ret.Locking, lock_timeout_ms: 1000 * 60 * 15
+config :logger, level: :info
+config :logger, :console, format: "[$level] $message\n"
+config :phoenix, :stacktrace_depth, 20
+config :ret, Ret.Locking,
+  lock_timeout_ms: 1000 * 60 * 15,
+  session_lock_db: [
+    username: "postgres",
+    password: "Pp232400!!",
+    database: db_name,
+    hostname: "localhost"
+  ]
 
 config :ret, Ret.Repo.Migrations.AdminSchemaInit, postgrest_password: "password"
 config :ret, Ret.StatsJob, node_stats_enabled: false, node_gauges_enabled: false
